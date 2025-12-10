@@ -2,15 +2,17 @@ package hashring
 
 import (
 	"fmt"
-	"hash/fnv"
 	"sort"
 	"sync"
+
+	"github.com/cespare/xxhash/v2"
 )
 
 // HashRing implements a simple consistent hashing ring with virtual nodes.
 // It maps arbitrary keys to added node identifiers.
 // The ring is safe for concurrent use.
 type HashRing struct {
+	// number of virtual nodes per real node
 	numReplicas int
 	keyToNode   map[uint64]string
 	sortedKeys  []uint64
@@ -31,10 +33,8 @@ func New(numReplicas int) *HashRing {
 	}
 }
 
-func hashBytes(data []byte) uint64 {
-	h := fnv.New64a()
-	_, _ = h.Write(data)
-	return h.Sum64()
+func hashBytes(b []byte) uint64 {
+	return xxhash.Sum64(b)
 }
 
 // AddNode adds a node to the ring with the configured number of replicas.
@@ -92,6 +92,7 @@ func (r *HashRing) GetNode(key string) (string, bool) {
 	}
 
 	h := hashBytes([]byte(key))
+	// binary search to find the node ID where the hash of the key is the NEXT higher hash
 	idx := sort.Search(len(r.sortedKeys), func(i int) bool { return r.sortedKeys[i] >= h })
 	if idx == len(r.sortedKeys) {
 		idx = 0
