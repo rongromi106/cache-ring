@@ -16,8 +16,10 @@ type HashRing struct {
 	numReplicas int
 	keyToNode   map[uint64]string
 	sortedKeys  []uint64
-	nodeSet     map[string]struct{}
-	mu          sync.RWMutex
+	// set of real node IDs
+	// vNodes are not recorded here
+	nodeSet map[string]struct{}
+	mu      sync.RWMutex
 }
 
 // New creates a HashRing with the given number of virtual node replicas per real node.
