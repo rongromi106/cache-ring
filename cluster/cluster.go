@@ -73,5 +73,13 @@ func (c *Cluster) Get(key string) (value string, nodeID string, ok bool) {
 }
 
 // Introspection / stats
-// func (c *Cluster) KeyCounts() map[string]int // nodeID -> #keys stored
+// nodeID -> #keys stored
+func (c *Cluster) KeyCounts() map[string]int {
+	counts := make(map[string]int)
+	for nodeID, node := range c.nodes {
+		counts[nodeID] = len(node.data)
+	}
+	return counts
+}
+
 // func (c *Cluster) SnapshotKeyOwners() map[string]string // key -> nodeID (for simulation)
