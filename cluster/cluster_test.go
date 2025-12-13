@@ -72,12 +72,22 @@ func TestRemoveNodeMigratesKeysToSuccessors(t *testing.T) {
 			if prev < token {
 				if hashValue > prev && hashValue <= token {
 					succ := c.ring.Successor(token)
-					return c.ring.OwnerOfToken(succ)
+					owner := c.ring.OwnerOfToken(succ)
+					for owner == removedNode {
+						succ = c.ring.Successor(succ)
+						owner = c.ring.OwnerOfToken(succ)
+					}
+					return owner
 				}
 			} else {
 				if hashValue > prev || hashValue <= token {
 					succ := c.ring.Successor(token)
-					return c.ring.OwnerOfToken(succ)
+					owner := c.ring.OwnerOfToken(succ)
+					for owner == removedNode {
+						succ = c.ring.Successor(succ)
+						owner = c.ring.OwnerOfToken(succ)
+					}
+					return owner
 				}
 			}
 		}

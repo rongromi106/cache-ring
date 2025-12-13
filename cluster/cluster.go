@@ -67,12 +67,20 @@ func (c *Cluster) RemoveNode(nodeID string) {
 	if len(c.ring.Nodes()) == 1 {
 		// we can just remove if it is the only node
 		c.ring.RemoveNode(nodeID)
+		// ensure internal node map is consistent
+		delete(c.nodes, nodeID)
 		return
 	}
 	for _, token := range tokens {
 		succ := c.ring.Successor(token)
 		prev := c.ring.Predecessor(token)
-		dstNode := c.ring.OwnerOfToken(succ)
+		// Find the first successor whose owner is not the node being removed.
+		dstToken := succ
+		// Each node's replicas is capped so we should not have an inf loop here
+		for c.ring.OwnerOfToken(dstToken) == nodeID {
+			dstToken = c.ring.Successor(dstToken)
+		}
+		dstNode := c.ring.OwnerOfToken(dstToken)
 		for key := range c.nodes[nodeID].data {
 			hash_value := hashring.HashBytes([]byte(key))
 			if prev < token {
