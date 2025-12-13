@@ -63,8 +63,35 @@ func (c *Cluster) AddNode(nodeID string) {
 
 // RemoveNode removes a node identifier from the cluster.
 func (c *Cluster) RemoveNode(nodeID string) {
-	delete(c.nodes, nodeID)
+	tokens := c.ring.TokensForNode(nodeID)
+	if len(c.ring.Nodes()) == 1 {
+		// we can just remove if it is the only node
+		c.ring.RemoveNode(nodeID)
+		return
+	}
+	for _, token := range tokens {
+		succ := c.ring.Successor(token)
+		prev := c.ring.Predecessor(token)
+		dstNode := c.ring.OwnerOfToken(succ)
+		for key := range c.nodes[nodeID].data {
+			hash_value := hashring.HashBytes([]byte(key))
+			if prev < token {
+				if hash_value > prev && hash_value <= token {
+					c.nodes[dstNode].data[key] = c.nodes[nodeID].data[key]
+					delete(c.nodes[nodeID].data, key)
+				}
+			} else {
+				if hash_value > prev || hash_value <= token {
+					c.nodes[dstNode].data[key] = c.nodes[nodeID].data[key]
+					delete(c.nodes[nodeID].data, key)
+				}
+			}
+		}
+	}
+	// remove all virtual nodes on the ring
 	c.ring.RemoveNode(nodeID)
+	// remove the node from the nodes map
+	delete(c.nodes, nodeID)
 }
 
 // LookupKey returns the node responsible for key. ok is false if the cluster is empty.
@@ -123,5 +150,3 @@ func (c *Cluster) SnapshotKeyOwners() map[string]string {
 	}
 	return owners
 }
-
-func (c *Cluster) rebalance() {}

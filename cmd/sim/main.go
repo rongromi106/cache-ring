@@ -52,6 +52,24 @@ func main() {
 	fmt.Printf("Number of remapped keys: %d\n", remappedKeys)
 	fmt.Printf("Remapped keys: %f%%\n", float64(remappedKeys)/float64(numKeys)*100)
 
+	// remove an existing node
+	fmt.Printf("After removing an existing node: %s", "node-b")
+	fmt.Println()
+	c.RemoveNode("node-b")
+	keyCounts = c.KeyCounts()
+	for nodeID, count := range keyCounts {
+		fmt.Printf("%s: %d keys, %f%%\n", nodeID, count, float64(count)/float64(numKeys)*100)
+	}
+	after = c.SnapshotKeyOwners()
+	remappedKeys = 0
+	for key, nodeID := range after {
+		if nodeID != before[key] {
+			remappedKeys++
+		}
+	}
+	fmt.Printf("Number of remapped keys: %d\n", remappedKeys)
+	fmt.Printf("Remapped keys: %f%%\n", float64(remappedKeys)/float64(numKeys)*100)
+
 	// keys := []string{"alpha", "bravo", "charlie", "delta", "echo", "foxtrot"}
 	// fmt.Println("\nInitial mapping:")
 	// for _, k := range keys {
