@@ -35,7 +35,7 @@ func New(numReplicas int) *HashRing {
 	}
 }
 
-func hashBytes(b []byte) uint64 {
+func HashBytes(b []byte) uint64 {
 	return xxhash.Sum64(b)
 }
 
@@ -50,7 +50,7 @@ func (r *HashRing) AddNode(nodeID string) {
 	}
 
 	for replica := 0; replica < r.numReplicas; replica++ {
-		key := hashBytes([]byte(fmt.Sprintf("%s#%d", nodeID, replica)))
+		key := HashBytes([]byte(fmt.Sprintf("%s#%d", nodeID, replica)))
 		r.keyToNode[key] = nodeID
 		r.sortedKeys = append(r.sortedKeys, key)
 	}
@@ -70,7 +70,7 @@ func (r *HashRing) RemoveNode(nodeID string) {
 
 	// Remove all replicas for this node from the map
 	for replica := 0; replica < r.numReplicas; replica++ {
-		key := hashBytes([]byte(fmt.Sprintf("%s#%d", nodeID, replica)))
+		key := HashBytes([]byte(fmt.Sprintf("%s#%d", nodeID, replica)))
 		delete(r.keyToNode, key)
 	}
 
@@ -93,7 +93,7 @@ func (r *HashRing) GetNode(key string) (string, bool) {
 		return "", false
 	}
 
-	h := hashBytes([]byte(key))
+	h := HashBytes([]byte(key))
 	// binary search to find the node ID where the hash of the key is the NEXT higher hash
 	idx := sort.Search(len(r.sortedKeys), func(i int) bool { return r.sortedKeys[i] >= h })
 	if idx == len(r.sortedKeys) {
@@ -114,4 +114,45 @@ func (r *HashRing) Nodes() []string {
 	}
 	sort.Strings(nodes)
 	return nodes
+}
+
+func (r *HashRing) TokensForNode(nodeID string) []uint64 {
+	tokens := make([]uint64, 0, r.numReplicas)
+	for replica := 0; replica < r.numReplicas; replica++ {
+		key := HashBytes([]byte(fmt.Sprintf("%s#%d", nodeID, replica)))
+		tokens = append(tokens, key)
+	}
+	return tokens
+}
+
+// Returns the predecessor of the given token in the sorted list of tokens.
+func (r *HashRing) Predecessor(token uint64) uint64 {
+	n := len(r.sortedKeys)
+	if n == 0 {
+		return 0
+	}
+	idx := sort.Search(n, func(i int) bool { return r.sortedKeys[i] >= token })
+	if idx == 0 {
+		return r.sortedKeys[n-1]
+	}
+	return r.sortedKeys[idx-1]
+}
+
+// Returns the successor of the given token in the sorted list of tokens.
+func (r *HashRing) Successor(token uint64) uint64 {
+	n := len(r.sortedKeys)
+	if n == 0 {
+		return 0
+	}
+	idx := sort.Search(len(r.sortedKeys), func(i int) bool { return r.sortedKeys[i] > token })
+	if idx == len(r.sortedKeys) {
+		return r.sortedKeys[0]
+	}
+	return r.sortedKeys[idx]
+}
+
+// Returns the nodeID responsible for the given token.
+// Or the physical nodeID that owns the virtual node.
+func (r *HashRing) OwnerOfToken(token uint64) string {
+	return r.keyToNode[token]
 }
